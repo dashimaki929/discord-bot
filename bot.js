@@ -13,9 +13,12 @@ client.on("message", message => {
   }
 
   if (message.content.includes("http")) {
+
+    console.log(message.channel.id);
+
     if (
       message.author.id === config.settings.Bot.id ||
-      message.channel.id === config.settings.Output.channel.id
+      message.channel.id === config.settings.Output.textChannel.id
     ) {
       return;
     }
