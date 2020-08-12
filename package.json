@@ -5,6 +5,7 @@
   "main": "bot.js",
   "dependencies": {
     "discord.js": "^12.2.0",
+    "puppeteer": "^5.2.1",
     "unirest": "^0.6.0"
   },
   "devDependencies": {},
