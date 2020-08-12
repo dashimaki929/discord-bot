@@ -115,6 +115,7 @@ async function getBuildImage(cmd, name) {
   }
 
   const browser = await Puppeteer.launch({
+    executablePath: '/usr/bin/chromium-browser',
     defaultViewport: {
       width: 1920,
       height: 1080
