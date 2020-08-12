@@ -120,7 +120,8 @@ async function getBuildImage(cmd, name) {
       width: 1920,
       height: 1080
     },
-    timeout: 10000
+    timeout: 10000,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
   const page = await browser.newPage();
 
