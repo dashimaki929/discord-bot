@@ -70,18 +70,20 @@ client.on("message", async message => {
     const name = args[1]
 
     message.channel.startTyping();
-    const fileName = await getBuildImage(cmd, name);
+    const {championName, image} = await getBuildImage(cmd, name);
     message.channel.stopTyping();
 
-    if (!fileName) {
+    const displayName = (name === championName) ? championName : `${name}(${championName})`;
+
+    if (!image) {
       message.channel.send(`\<@${message.author.id}\>\n\`${name}\` \`${cmd}\` is not found.`);
     }
 
-    message.channel.send(`\<@${message.author.id}\>\n\`${name}\` \`${cmd}\``, {
+    message.channel.send(`\<@${message.author.id}\>\n\`${displayName}\` \`${cmd}\`\n(more info) https://www.leagueofgraphs.com/ja/champions/builds/${championName}`, {
       files: [
         {
-          attachment: `./images/lol/${fileName}`,
-          name: fileName
+          attachment: `./images/lol/${image}`,
+          name: image
         }
       ]
     });
@@ -135,5 +137,8 @@ async function getBuildImage(cmd, name) {
 
   browser.close();
 
-  return `${championName}_${cmd}.png`;
+  return {
+    championName,
+    image: `${championName}_${cmd}.png`,
+  };
 }
