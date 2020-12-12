@@ -1,3 +1,4 @@
+const fs = require("fs");
 const config = require("./config/settings");
 
 const Discord = require("discord.js");
@@ -9,83 +10,187 @@ client.on("ready", () => {
   console.log("Boot completed successfully!");
 });
 
-client.on("message", async message => {
+client.on("message", async (message) => {
   if (message.content.startsWith("!ping")) {
     message.channel.send("pong");
   }
 
-  if (message.content.includes("http")) {
-    const interests = [
-      "twitter",
-      "youtube",
-      "youtu.be",
-      "steam",
-      "gyazo",
-      "streamable",
-      "amazon",
-      "nicovideo",
-      "instagram",
-      "dashimaki"
-    ];
+  if (
+    message.content.startsWith("!lol") ||
+    message.content.startsWith("!spell") ||
+    message.content.startsWith("!skill") ||
+    message.content.startsWith("!build") ||
+    message.content.startsWith("!rune") ||
+    message.content.startsWith("!role")
+  ) {
+    const [cmd, name, lane] = message.content.split(/ |　/);
+    const info = cmd.substr(1);
+    const championName = pullCollectChampionName(name);
+    const position = foramtPositionName(lane);
 
-    if (
-      message.author.id === config.settings.Bot.id ||
-      message.channel.id === config.settings.Output.textChannel.id ||
-      message.channel.id === config.settings.Input.textChannel.id
-    ) {
+    if (!championName) {
+      message.channel.send({
+        embed: {
+          color: 0xff0000,
+          author: {
+            name: "LoL Build Support",
+            url: "https://github.com/dashimaki929/discord-bot/tree/develop",
+            iconURL: "attachment://icon.png",
+          },
+          title: "The specified champion was not found.",
+          description: `\<@${message.author.id}\>\nChampion name \`${
+            name ? name : "none"
+          }\` is not found.`,
+        },
+        files: [
+          {
+            attachment: "./config/icon_lol.png",
+            name: "icon.png",
+          },
+        ],
+      });
+
       return;
     }
 
-    const matchedTags = interests.filter(item =>
-      message.content.includes(item)
-    );
+    const displayName =
+      name === championName ? championName : `${name}(${championName})`;
 
-    client.channels
-      .fetch(config.settings.Output.textChannel.id)
-      .then(channel => {
-        channel.send(
-          // テキストメッセージを引用
-          `${message.content
-            .split("\n")
-            .map(line => `> ${line}`)
-            .join("\n")}\n\n` +
-            // タグ表示
-            `${matchedTags.map(item => `\`#${item}\``).join(" ")}\n` +
-            // 投稿者へメンション
-            `Added by: \<@${message.author.id}\>`
-        );
-      })
-      .catch(console.error);
-  }
-
-  if (
-    message.content.startsWith("!skill") ||
-    message.content.startsWith("!build") ||
-    message.content.startsWith("!role") ||
-    message.content.startsWith("!spell") ||
-    message.content.startsWith("!rune")
-  ) {
-    const args = message.content.split(" ");
-    const cmd = args[0].substr(1);
-    const name = args[1]
-
-    message.channel.startTyping();
-    const {championName, image} = await getBuildImage(cmd, name);
-    message.channel.stopTyping();
-
-    const displayName = (name === championName) ? championName : `${name}(${championName})`;
-
-    if (!image) {
-      message.channel.send(`\<@${message.author.id}\>\n\`${name}\` \`${cmd}\` is not found.`);
+    if (info === "role") {
+      message.channel.send({
+        embed: {
+          color: 0x5cb85c,
+          author: {
+            name: "LoL Build Support",
+            url: "https://github.com/dashimaki929/discord-bot/tree/develop",
+            iconURL: "attachment://icon.png",
+          },
+          title: `${championName.toUpperCase()}'s Positions`,
+          thumbnail: {
+            url: `attachment://${championName}.png`,
+          },
+          description: `\<@${message.author.id}\> \`${displayName}\` \`${info}\``,
+        },
+        files: [
+          {
+            attachment: "./config/icon_lol.png",
+            name: "icon.png",
+          },
+          {
+            attachment: `./images/lol/champions/${championName}.png`,
+            name: `${championName}.png`,
+          },
+        ],
+      });
+      return;
     }
 
-    message.channel.send(`\<@${message.author.id}\>\n\`${displayName}\` \`${cmd}\`\n(more info) https://www.leagueofgraphs.com/ja/champions/builds/${championName}`, {
+    let imageName;
+    try {
+      message.channel.startTyping();
+      imageName = await getBuildImage({ info, championName, position });
+    } catch (err) {
+      message.channel.send({
+        embed: {
+          color: 0xff0000,
+          author: {
+            name: "LoL Build Support",
+            url: "https://github.com/dashimaki929/discord-bot/tree/develop",
+            iconURL: "attachment://icon.png",
+          },
+          title:
+            "This champion cannot be analyzed due to the small sample size.",
+          thumbnail: {
+            url: `attachment://${championName}.png`,
+          },
+          description: `\<@${message.author.id}\>\n\n\`${championName}\` :\n　This champion cannot be analyzed due to the small sample size.\n　(当チャンピオンはサンプルが少ないため分析できません。)\n\n以下サイトに情報が存在するかも...`,
+          fields: [
+            {
+              name: ":regional_indicator_l: League of Graphs",
+              value: `https://www.leagueofgraphs.com/ja/champions/builds/${championName}`,
+              inline: true,
+            },
+            {
+              name: ":flag_jp: LoLBuild.jp",
+              value: `https://lolbuild.jp/build?q=${championName}&order=vote_desc${
+                lane ? `&lane=${foramtPositionName(lane, "LoLBuild.jp")}` : ""
+              }`,
+              inline: true,
+            },
+          ],
+        },
+        files: [
+          {
+            attachment: "./config/icon_lol.png",
+            name: "icon.png",
+          },
+          {
+            attachment: `./images/lol/champions/${championName}.png`,
+            name: `${championName}.png`,
+          },
+        ],
+      });
+      return;
+    } finally {
+      message.channel.stopTyping();
+    }
+
+    message.channel.send({
+      embed: {
+        color: 0x5cb85c,
+        author: {
+          name: "LoL Build Support",
+          url: "https://github.com/dashimaki929/discord-bot/tree/develop",
+          iconURL: "attachment://icon.png",
+        },
+        title: `【OP.GG】${championName.toUpperCase()} - Real-time LoL Stats.`,
+        url: `http://na.op.gg/champion/${championName}${
+          position ? `/statistics/${position}` : ""
+        }`,
+        thumbnail: {
+          url: `attachment://${championName}.png`,
+        },
+        description: `\<@${message.author.id}\>\n\`${displayName}\` ${
+          position ? `\`${position}\` ` : ""
+        }\`${info}\``,
+        image: {
+          url: `attachment://${imageName}`,
+          width: 500,
+        },
+        fields: [
+          {
+            name: ":book: OP.GG (More info)",
+            value: `http://na.op.gg/champion/${championName}${
+              position ? `/statistics/${position}` : ""
+            }`,
+          },
+          {
+            name: ":regional_indicator_l: League of Graphs",
+            value: `https://www.leagueofgraphs.com/ja/champions/builds/${championName}`,
+          },
+          {
+            name: ":flag_jp: LoLBuild.jp",
+            value: `https://lolbuild.jp/build?q=${championName}&order=vote_desc${
+              lane ? `&lane=${foramtPositionName(lane, "LoLBuild.jp")}` : ""
+            }`,
+          },
+        ],
+        timestamp: new Date(),
+      },
       files: [
         {
-          attachment: `./images/lol/${image}`,
-          name: image
-        }
-      ]
+          attachment: "./config/icon_lol.png",
+          name: "icon.png",
+        },
+        {
+          attachment: `./images/lol/champions/${championName}.png`,
+          name: `${championName}.png`,
+        },
+        {
+          attachment: `./images/lol/stats/${imageName}`,
+          name: imageName,
+        },
+      ],
     });
   }
 
@@ -99,46 +204,113 @@ client.on("message", async message => {
 
 client.login(config.settings.Bot.token);
 
-async function getBuildImage(cmd, name) {
-  const BASE_URL = "https://www.leagueofgraphs.com/ja/champions/builds/";
+/**
+ * 指定された情報の要素をキャプチャします。
+ *
+ * @param {*} info
+ * @param {*} championName :formatted
+ * @param {*} position :formatted
+ */
+async function getBuildImage({ info, championName, position }) {
+  const BASE_URL = "http://na.op.gg/champion/";
+
   const elementSelectorMap = {
-    skill: "#mainContent > div > div:nth-child(1) > a:nth-child(3) > div",
-    build: "#mainContent > div > div:nth-child(1) > a:nth-child(4) > div",
-    role:
-      "#mainContent > div > div:nth-child(2) > div.row > div:nth-child(1) > div",
+    lol:
+      "body > div.l-wrap.l-wrap--champion > div.l-container > div > div.tabWrap._recognized > div.l-champion-statistics-content.tabItems > div.tabItem.Content.championLayout-overview > div",
     spell:
-      "#mainContent > div > div:nth-child(2) > div.row > div:nth-child(2) > a > div",
-    rune: "#mainContent > div > div:nth-child(2) > a > div"
+      "body > div.l-wrap.l-wrap--champion > div.l-container > div > div.tabWrap._recognized > div.l-champion-statistics-content.tabItems > div.tabItem.Content.championLayout-overview > div > div.l-champion-statistics-content__main > table.champion-overview__table.champion-overview__table--summonerspell",
+    skill:
+      "body > div.l-wrap.l-wrap--champion > div.l-container > div > div.tabWrap._recognized > div.l-champion-statistics-content.tabItems > div.tabItem.Content.championLayout-overview > div > div.l-champion-statistics-content__main > table.champion-overview__table.champion-overview__table--summonerspell",
+    build:
+      "body > div.l-wrap.l-wrap--champion > div.l-container > div > div.tabWrap._recognized > div.l-champion-statistics-content.tabItems > div.tabItem.Content.championLayout-overview > div > div.l-champion-statistics-content__main > table:nth-child(2)",
+    rune:
+      "body > div.l-wrap.l-wrap--champion > div.l-container > div > div.tabWrap._recognized > div.l-champion-statistics-content.tabItems > div.tabItem.Content.championLayout-overview > div > div.l-champion-statistics-content__main > div > table",
   };
 
-  championName = config.settings.Champions[name] || name;
-  if (!Object.values(config.settings.Champions).includes(championName)) {
-    return null;
-  }
-
   const browser = await Puppeteer.launch({
-    executablePath: '/usr/bin/chromium-browser',
+    executablePath: "/usr/bin/chromium-browser",
     defaultViewport: {
       width: 1920,
-      height: 1080
+      height: 1080,
     },
     timeout: 10000,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
   const page = await browser.newPage();
 
-  await page.goto(`${BASE_URL}${championName}`);
-  await page.waitFor(elementSelectorMap[cmd]);
+  if (!position) {
+    await page.goto(`${BASE_URL}${championName}`);
+  } else {
+    await page.goto(`${BASE_URL}${championName}/statistics/${position}`);
+  }
 
-  const element = await page.$(elementSelectorMap[cmd]);
-  await element.screenshot({
-    path: `./images/lol/${championName}_${cmd}.png`
-  });
+  const element = await page.$(elementSelectorMap[info]);
+  let imageName = championName;
+  if (position) {
+    imageName += `_${position}`;
+  }
+  if (info) {
+    imageName += `_${info}`;
+  }
+  imageName += ".png";
 
+  await element.screenshot({ path: `./images/lol/stats/${imageName}` });
   browser.close();
 
-  return {
-    championName,
-    image: `${championName}_${cmd}.png`,
-  };
+  return imageName;
+}
+
+/**
+ * 受け取ったチャンピオン名が日本語の場合、英名へ変換します。
+ *
+ * @param {*} name
+ */
+function pullCollectChampionName(name) {
+  const champions = JSON.parse(fs.readFileSync("./config/lol-champions.json"));
+
+  const championName = champions[name] || name;
+  if (!Object.values(champions).includes(championName)) {
+    return null;
+  }
+  return championName;
+}
+
+/**
+ * 受け取ったレーン名を適切なポジション名へ変換します。
+ * @param {*} lane
+ */
+function foramtPositionName(lane, type) {
+  if (["top", "tp", "t", "トップ"].includes(lane)) {
+    return "top";
+  } else if (["middle", "mid", "md", "m", "ミドル", "ミッド"].includes(lane)) {
+    if (type === "LoLBuild.jp") {
+      return "middle";
+    } else {
+      return "mid";
+    }
+  } else if (
+    ["adc", "bottom", "bot", "bt", "b", "ボトム", "ボット"].includes(lane)
+  ) {
+    if (type === "LoLBuild.jp") {
+      return "bottom";
+    } else {
+      return "bot";
+    }
+  } else if (["support", "sup", "sp", "s", "サポート", "サポ"].includes(lane)) {
+    return "support";
+  } else if (
+    [
+      "jungle",
+      "jungler",
+      "jg",
+      "j",
+      "ジャングル",
+      "ジャングラ",
+      "ジャングラー",
+    ].includes(lane)
+  ) {
+    return "jungle";
+  } else {
+    return null;
+  }
 }
